@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { platformSignInUrl } from "@/lib/platform";
+
+const SIGN_IN_URL = platformSignInUrl();
 
 const LINKS = [
   { href: "/platform", label: "Platform" },
@@ -33,7 +36,7 @@ export default function Nav() {
               {l.label}
             </Link>
           ))}
-          <Link href="/#signup" className="nav-mobile-only" onClick={close}>Sign in</Link>
+          <a href={SIGN_IN_URL} className="nav-mobile-only" onClick={close}>Sign in</a>
         </div>
         <button
           className="nav-toggle"
@@ -45,7 +48,7 @@ export default function Nav() {
           <span></span><span></span><span></span>
         </button>
         <div className="nav-right">
-          <Link className="signin" href="/#signup">Sign in</Link>
+          <a className="signin" href={SIGN_IN_URL}>Sign in</a>
           <Link className="btn btn-pill" href="/#signup">Start free trial</Link>
         </div>
       </nav>

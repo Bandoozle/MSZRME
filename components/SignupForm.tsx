@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react";
+import { platformSignInUrl } from "@/lib/platform";
 
 export default function SignupForm() {
   const [done, setDone] = useState(false);
@@ -19,9 +20,14 @@ export default function SignupForm() {
     if (!b) { setErrBiz(true); return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setErrEmail(true); return; }
     if (pw.length < 8) { setErrPw(true); return; }
+    const trimmedEmail = email.trim();
     setFirst(b.split(/\s+/)[0]);
     setDone(true);
     // TODO: POST to your signup / auth endpoint here.
+    const redirectUrl = platformSignInUrl({ email: trimmedEmail, signedup: true });
+    window.setTimeout(() => {
+      window.location.href = redirectUrl;
+    }, 1800);
   }
 
   if (done) {
@@ -29,7 +35,7 @@ export default function SignupForm() {
       <div className="su-success" style={{ display: "block" }}>
         <div className="check"><Check size={30} strokeWidth={3} /></div>
         <h3>You&rsquo;re in.</h3>
-        <p>Welcome aboard, {first}. Check your inbox to confirm your email, then log your first day.</p>
+        <p>Welcome aboard, {first}. Redirecting you to sign in&hellip;</p>
       </div>
     );
   }

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { platformSignInUrl } from "@/lib/platform";
+
+const SIGN_IN_URL = platformSignInUrl();
 
 export default function Footer() {
   return (
@@ -22,7 +25,7 @@ export default function Footer() {
           <Link href="/about">About</Link>
           <Link href="/coaching">Coaching</Link>
           <Link href="/contact">Contact</Link>
-          <Link href="/#signup">Sign in</Link>
+          <a href={SIGN_IN_URL}>Sign in</a>
         </div>
         <div className="foot-col">
           <h4>Get started</h4>

@@ -118,11 +118,9 @@
   .pv-goal .v{font-size:34px;font-weight:700;letter-spacing:-0.03em;color:var(--green);margin-top:6px;line-height:1}
   .pv-goal .bar{height:7px;border-radius:4px;background:#e3e3e8;margin-top:14px;overflow:hidden}
   .pv-goal .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--green-bright));border-radius:4px}
-  .pv-gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .pv-g{background:var(--bg-alt);border-radius:16px;padding:14px 8px 12px;text-align:center}
-  .pv-g .gl{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);min-height:24px;display:flex;align-items:center;justify-content:center}
-  .pv-g .gv{font-size:21px;font-weight:700;letter-spacing:-0.02em;margin-top:-2px}
-  .pv-g .gs{font-size:11px;font-weight:600;color:var(--green-bright);margin-top:4px}
+  .pv-gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch}
+  .pv-g{background:var(--bg-alt);border-radius:16px;padding:12px 8px 10px;display:flex;align-items:center;justify-content:center;min-height:0}
+  .pv-g-svg{display:block;width:100%;max-width:168px;aspect-ratio:140/132;overflow:visible}
 
   /* ── FEATURE SECTIONS ─────────────────────────────────────────*/
   .feat{text-align:center}
@@ -133,7 +131,8 @@
 
   /* Instrument cluster block */
   .cluster{max-width:760px;margin:0 auto;background:#fff;border:1px solid #e6e6eb;border-radius:var(--radius-lg);box-shadow:0 30px 70px -40px rgba(0,0,0,0.25);padding:30px}
-  .cluster-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .cluster-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch}
+  .cluster-row > .pv-g{height:100%}
 
   /* Three-up feature cards */
   .cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:980px;margin:54px auto 0;text-align:left}
@@ -386,6 +385,7 @@
     .section{padding:74px 0}
     .pv-gauges{gap:10px}
     .cluster-row{gap:10px}
+    .pv-g-svg{max-width:none}
     .cards3{grid-template-columns:1fr;max-width:440px}
     .problem-grid{grid-template-columns:1fr;max-width:440px}
     .steps{grid-template-columns:1fr;max-width:440px;gap:20px}
@@ -406,17 +406,20 @@
     .preview{padding:18px}
     .pv-headrow{grid-template-columns:1fr;gap:12px}
     .pv-rev .v{font-size:32px}
-    .pv-gauges{grid-template-columns:1fr 1fr;gap:10px}
-    .pv-g:last-child{grid-column:1 / -1}
+    .pv-gauges{grid-template-columns:repeat(3,1fr);gap:10px}
+    .pv-gauges .pv-g:last-child{grid-column:auto}
     .cluster{padding:18px}
-    .cluster-row{grid-template-columns:1fr 1fr}
-    .cluster-row > div:last-child{grid-column:1 / -1}
+    .cluster-row{grid-template-columns:repeat(3,1fr);gap:10px}
+    .cluster-row > .pv-g:last-child{grid-column:auto}
     .tiers{grid-template-columns:1fr;max-width:380px}
     .hero-ctas{gap:18px}
     .foot-top{grid-template-columns:1fr 1fr;gap:26px}
     .su-card{padding:28px 22px}
     .cadence{grid-template-columns:1fr;max-width:340px}
     .stage-cards{grid-template-columns:1fr;max-width:340px}
+  }
+  @media(max-width:400px){
+    .pv-gauges,.cluster-row{grid-template-columns:1fr;max-width:280px;margin-left:auto;margin-right:auto}
   }
   @media(prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
