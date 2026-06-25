@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { PlatformShell } from "@/components/PlatformShell";
+import { PlatformRoutePage } from "@/components/PlatformRoutePage";
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <PlatformShell entry="login" />
-    </Suspense>
-  );
+  return <PlatformRoutePage />;
 }

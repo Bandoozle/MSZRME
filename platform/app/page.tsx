@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { PlatformShell } from "@/components/PlatformShell";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <Suspense>
-      <PlatformShell />
-    </Suspense>
-  );
+  redirect("/dashboard");
 }

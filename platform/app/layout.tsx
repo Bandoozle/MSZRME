@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import "@/styles/globals.css";
+import "@/styles/platform.css";
 
 export const metadata: Metadata = {
   title: "MSZRME — Measure Your Business",
