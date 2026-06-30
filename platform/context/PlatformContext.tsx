@@ -14,10 +14,16 @@ import { KPI as DEFAULT_KPI, USERS, type KpiPeriodKey, type KpiStore } from "@/l
 import type { DealerPageId } from "@/lib/platform/data/nav";
 import { getStage } from "@/lib/platform/utils/format";
 import { isWebsiteReferral, WEBSITE_URL } from "@/lib/urls";
+import { createClient } from "@/lib/supabase/client";
+import { ensureProfile, persistOnboarding, profileToSessionUser, type OnboardingData } from "@/lib/auth/profile";
+import { homePathForUser, isOnboardingPath } from "@/lib/platform/routing";
 
-export type UserRole = "dealer" | "admin" | "new";
+export type UserRole = "dealer" | "admin";
+
+export type LoginResult = { ok: true } | { ok: false; message: string };
 
 export interface SessionUser {
+  id: string;
   email: string;
   role: UserRole;
   name: string;
@@ -25,10 +31,12 @@ export interface SessionUser {
   initials: string;
   tier: number;
   stage: string;
+  firstTime: boolean;
 }
 
 interface PlatformContextValue {
   user: SessionUser | null;
+  authReady: boolean;
   dark: boolean;
   page: DealerPageId;
   period: KpiPeriodKey;
@@ -44,8 +52,8 @@ interface PlatformContextValue {
   signedUp: boolean;
   initialEmail: string;
   websiteUrl: string;
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  logout: () => Promise<void>;
   goTo: (page: DealerPageId) => void;
   setPeriod: (p: KpiPeriodKey) => void;
   toggleTheme: () => void;
@@ -60,6 +68,7 @@ interface PlatformContextValue {
   closeSidebar: () => void;
   showToast: (msg: string) => void;
   setInsight: (text: string) => void;
+  completeOnboarding: (data: OnboardingData) => Promise<boolean>;
 }
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
@@ -94,6 +103,7 @@ function pathForPage(page: DealerPageId): string {
   if (page === "dashboard") return "/dashboard";
   return `/${page}`;
 }
+
 const INSIGHTS: Record<KpiPeriodKey, string> = {
   Day: "You've closed 2 jobs today — tracking 238% above daily target. Strong day..",
   Week: "Strong week. 9 closed sales and your closing ratio held above 50% for the seventh consecutive week.",
@@ -111,11 +121,19 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function mapUser(email: string): SessionUser | null {
+function isSupabaseConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
+function mapDemoUser(email: string): SessionUser | null {
   const u = USERS[email];
   if (!u) return null;
   const yearRev = DEFAULT_KPI.Year.tsr;
   return {
+    id: `demo-${email}`,
     email,
     role: u.role,
     name: u.name,
@@ -123,6 +141,7 @@ function mapUser(email: string): SessionUser | null {
     initials: initials(u.name),
     tier: 1,
     stage: getStage(yearRev),
+    firstTime: Boolean(u.firstTime),
   };
 }
 
@@ -135,7 +154,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const initialEmail = searchParams.get("email") ?? "";
 
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [ready, setReady] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [dark, setDark] = useState(false);
   const [page, setPage] = useState<DealerPageId>("dashboard");
   const [period, setPeriodState] = useState<KpiPeriodKey>("Day");
@@ -148,69 +167,187 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const [stageModalOpen, setStageModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("mszrme_session");
-      if (raw) {
-        const parsed = JSON.parse(raw) as SessionUser;
-        if (parsed?.email) setUser(parsed);
-      }
-    } catch {
-      /* ignore */
+  const loadSessionUser = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setAuthReady(true);
+      return;
     }
-    setReady(true);
+
+    const supabase = createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      setUser(null);
+      setAuthReady(true);
+      return;
+    }
+
+    const profile = await ensureProfile(supabase, authUser.id);
+    if (profile) {
+      setUser(profileToSessionUser(profile));
+    } else {
+      setUser(null);
+    }
+    setAuthReady(true);
   }, []);
+
+  useEffect(() => {
+    void loadSessionUser();
+
+    if (!isSupabaseConfigured()) return;
+
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setUser(null);
+        return;
+      }
+      void ensureProfile(supabase, session.user.id).then((profile) => {
+        if (profile) setUser(profileToSessionUser(profile));
+      });
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadSessionUser]);
 
   useEffect(() => {
     document.body.classList.toggle("dark-mode", dark);
   }, [dark]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!authReady) return;
     const fromPath = pageFromPath(pathname ?? "/");
     setPage(fromPath);
-  }, [pathname, ready]);
+  }, [pathname, authReady]);
+
+  useEffect(() => {
+    if (!authReady || !user) return;
+    if (user.role === "admin") return;
+
+    const onOnboarding = isOnboardingPath(pathname);
+    if (user.firstTime && !onOnboarding) {
+      router.replace("/onboarding");
+      return;
+    }
+    if (!user.firstTime && onOnboarding) {
+      router.replace("/dashboard");
+    }
+  }, [authReady, user, pathname, router]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 3200);
   }, []);
 
-  const login = useCallback((email: string, password: string) => {
-    const key = email.trim().toLowerCase();
-    const u = USERS[key];
-    if (!u || u.pw !== password) return false;
-    const session = mapUser(key);
-    if (!session) return false;
-    setUser(session);
-    try {
-      sessionStorage.setItem("mszrme_session", JSON.stringify(session));
-    } catch {
-      /* ignore */
-    }
-    setPage("dashboard");
-    setInsight(INSIGHTS.Day);
-    router.replace("/dashboard");
-    return true;
-  }, [fromWebsite, router]);
+  const login = useCallback(
+    async (email: string, password: string): Promise<LoginResult> => {
+      const key = email.trim().toLowerCase();
 
-  const logout = useCallback(() => {
+      if (!isSupabaseConfigured()) {
+        const u = USERS[key];
+        if (!u || u.pw !== password) {
+          return { ok: false, message: "Invalid email or password." };
+        }
+        const session = mapDemoUser(key);
+        if (!session) {
+          return { ok: false, message: "Invalid email or password." };
+        }
+        setUser(session);
+        setPage("dashboard");
+        setInsight(INSIGHTS.Day);
+        router.replace(homePathForUser(session));
+        return { ok: true };
+      }
+
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: key,
+        password,
+      });
+
+      if (error || !data.user) {
+        const message =
+          error?.message === "Invalid login credentials"
+            ? "Invalid email or password."
+            : (error?.message ?? "Could not sign in. Try again.");
+        return { ok: false, message };
+      }
+
+      const profile = await ensureProfile(supabase, data.user.id);
+      if (!profile) {
+        await supabase.auth.signOut();
+        return {
+          ok: false,
+          message: "Could not load your account. Try again or contact support.",
+        };
+      }
+
+      const session = profileToSessionUser(profile);
+      setUser(session);
+      setPage("dashboard");
+      setInsight(INSIGHTS.Day);
+      router.replace(homePathForUser(session));
+      return { ok: true };
+    },
+    [router]
+  );
+
+  const completeOnboarding = useCallback(
+    async (data: OnboardingData): Promise<boolean> => {
+      if (!user) return false;
+
+      if (!isSupabaseConfigured()) {
+        const updated: SessionUser = {
+          ...user,
+          name: data.displayName,
+          biz: data.businessName,
+          initials: initials(data.displayName),
+          stage: getStage(data.annualRevenue),
+          firstTime: false,
+        };
+        setUser(updated);
+        router.replace("/dashboard");
+        return true;
+      }
+
+      const supabase = createClient();
+      const profile = await persistOnboarding(supabase, user.id, data);
+      if (!profile) return false;
+
+      const session = profileToSessionUser(profile);
+      setUser(session);
+      router.replace("/dashboard");
+      return true;
+    },
+    [router, user]
+  );
+
+  const logout = useCallback(async () => {
     setUser(null);
     setPage("dashboard");
-    try {
-      sessionStorage.removeItem("mszrme_session");
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
-  const goTo = useCallback((p: DealerPageId) => {
-    setPage(p);
-    setNotifOpen(false);
-    setMenuOpen(false);
-    setSidebarOpen(false);
-    router.push(pathForPage(p));
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    }
+
+    router.replace("/login");
   }, [router]);
+
+  const goTo = useCallback(
+    (p: DealerPageId) => {
+      setPage(p);
+      setNotifOpen(false);
+      setMenuOpen(false);
+      setSidebarOpen(false);
+      router.push(pathForPage(p));
+    },
+    [router]
+  );
 
   const setPeriod = useCallback((p: KpiPeriodKey) => {
     setPeriodState(p);
@@ -220,6 +357,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const value = useMemo<PlatformContextValue>(
     () => ({
       user,
+      authReady,
       dark,
       page,
       period,
@@ -251,9 +389,11 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       closeSidebar: () => setSidebarOpen(false),
       showToast,
       setInsight,
+      completeOnboarding,
     }),
     [
       user,
+      authReady,
       dark,
       page,
       period,
@@ -273,6 +413,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       goTo,
       setPeriod,
       showToast,
+      completeOnboarding,
     ]
   );
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { WEBSITE_URL } from "@/lib/urls";
 
 interface Props {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => void | Promise<void>;
   error?: string;
   fromWebsite?: boolean;
   initialEmail?: string;
@@ -49,6 +49,11 @@ const inputBaseStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+const isSupabaseMode = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
 export function LoginScreen({
   onLogin,
   error = "",
@@ -56,8 +61,11 @@ export function LoginScreen({
   initialEmail = "",
   signedUp = false,
 }: Props) {
-  const [email, setEmail] = useState(initialEmail || "john@northvanhvac.ca");
-  const [password, setPassword] = useState("demo123");
+  const fromSignup = signedUp || Boolean(initialEmail);
+  const [email, setEmail] = useState(
+    () => initialEmail || (isSupabaseMode ? "" : "john@northvanhvac.ca")
+  );
+  const [password, setPassword] = useState(() => (fromSignup || isSupabaseMode ? "" : "demo123"));
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [hoverDemo, setHoverDemo] = useState<number | null>(null);
@@ -67,6 +75,10 @@ export function LoginScreen({
   useEffect(() => {
     if (initialEmail) setEmail(initialEmail);
   }, [initialEmail]);
+
+  useEffect(() => {
+    if (signedUp) setPassword("");
+  }, [signedUp]);
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -87,7 +99,7 @@ export function LoginScreen({
           boxShadow: "none",
         };
 
-  const handleSubmit = () => onLogin(email, password);
+  const handleSubmit = () => void onLogin(email, password);
 
   return (
     <div
@@ -341,6 +353,7 @@ export function LoginScreen({
           Sign In
         </button>
 
+        {!isSupabaseMode ? (
         <div
           style={{
             marginTop: "24px",
@@ -405,6 +418,7 @@ export function LoginScreen({
             ))}
           </div>
         </div>
+        ) : null}
       </div>
     </div>
   );

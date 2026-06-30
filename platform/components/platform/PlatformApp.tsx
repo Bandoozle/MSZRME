@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { usePlatform } from "@/context/PlatformContext";
 import { AdminApp } from "@/components/platform/admin/AdminApp";
 import { AppShell } from "@/components/platform/AppShell";
@@ -15,6 +15,7 @@ import {
 } from "@/components/platform/overlays/StageListBody";
 import { CalculatorPage } from "@/components/platform/pages/CalculatorPage";
 import { DashboardPage } from "@/components/platform/pages/DashboardPage";
+import { OnboardingPage } from "@/components/platform/pages/OnboardingPage";
 import { EnterpriseValuePage } from "@/components/platform/pages/EnterpriseValuePage";
 import { FinancialsPage } from "@/components/platform/pages/FinancialsPage";
 import { GoalsPage } from "@/components/platform/pages/GoalsPage";
@@ -33,14 +34,17 @@ import {
   type PlatformNotification,
 } from "@/lib/platform/utils/notifications";
 import { computeStageInfo, computeStageProgress } from "@/lib/platform/utils/stage";
+import { isOnboardingPath } from "@/lib/platform/routing";
 
 type AppView = "dealer" | "admin";
 
 export function PlatformApp() {
   const router = useRouter();
+  const pathname = usePathname();
   const ctx = usePlatform();
   const {
     user,
+    authReady,
     dark,
     page,
     period,
@@ -69,6 +73,7 @@ export function PlatformApp() {
     closeStageModal,
     closeSidebar,
     showToast,
+    completeOnboarding,
   } = ctx;
 
   const [loginError, setLoginError] = useState("");
@@ -82,11 +87,12 @@ export function PlatformApp() {
   const [termsOpen, setTermsOpen] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.location.pathname === "/admin" && user?.role === "admin") {
-      setAppView("admin");
+    if (!user) {
+      setAppView("dealer");
+      return;
     }
-  }, [user?.role]);
+    setAppView(user.role === "admin" ? "admin" : "dealer");
+  }, [user]);
 
   const stageId = (user?.stage ?? "green") as StageId;
   const yearKpi = kpi.Year;
@@ -105,22 +111,15 @@ export function PlatformApp() {
   }, [period, kpi, stageId]);
 
   const handleLogin = useCallback(
-    (email: string, password: string) => {
-      const ok = login(email, password);
-      if (!ok) {
-        setLoginError("Invalid email or password.");
+    async (email: string, password: string) => {
+      const result = await login(email, password);
+      if (!result.ok) {
+        setLoginError(result.message);
         return;
       }
       setLoginError("");
-      const key = email.trim().toLowerCase();
-      if (key === "admin@mszrme.com") {
-        setAppView("admin");
-        router.replace("/admin");
-      } else {
-        setAppView("dealer");
-      }
     },
-    [login, router]
+    [login]
   );
 
   const handleLogout = useCallback(() => {
@@ -245,7 +244,7 @@ export function PlatformApp() {
       case "notes":
         return (
           <NotesPage
-            isFirstTime={user?.role === "new"}
+            isFirstTime={user?.firstTime ?? false}
             onToast={showToast}
           />
         );
@@ -274,6 +273,10 @@ export function PlatformApp() {
           />
         );
     }
+  }
+
+  if (!authReady) {
+    return null;
   }
 
   if (!user) {
@@ -305,6 +308,19 @@ export function PlatformApp() {
         />
         {toast ? <div className="toast">{toast}</div> : null}
       </div>
+    );
+  }
+
+  if (user.firstTime && isOnboardingPath(pathname)) {
+    return (
+      <>
+        <OnboardingPage
+          userName={user.name}
+          businessName={user.biz}
+          onComplete={completeOnboarding}
+        />
+        {toast ? <div className="toast">{toast}</div> : null}
+      </>
     );
   }
 

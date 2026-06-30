@@ -27,3 +27,6 @@ Copy `.env.local.example` to `.env.local` in each project and adjust URLs as nee
 
 - Website: `NEXT_PUBLIC_PLATFORM_URL` (default `http://localhost:3001`)
 - Platform: `NEXT_PUBLIC_WEBSITE_URL` (default `http://localhost:3000`)
+- **Both:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see [`supabase/README.md`](supabase/README.md))
+- **Website only:** `SUPABASE_SERVICE_ROLE_KEY` (signup API)
+

@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react";
-import { platformSignInUrl } from "@/lib/platform";
+import { PLATFORM_URL, platformOnboardingUrl, platformSignInUrl } from "@/lib/platform";
 
 export default function SignupForm() {
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [apiError, setApiError] = useState("");
   const [first, setFirst] = useState("");
   const [biz, setBiz] = useState("");
   const [email, setEmail] = useState("");
@@ -14,20 +16,67 @@ export default function SignupForm() {
   const [errEmail, setErrEmail] = useState(false);
   const [errPw, setErrPw] = useState(false);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setApiError("");
     const b = biz.trim();
-    if (!b) { setErrBiz(true); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setErrEmail(true); return; }
-    if (pw.length < 8) { setErrPw(true); return; }
-    const trimmedEmail = email.trim();
-    setFirst(b.split(/\s+/)[0]);
-    setDone(true);
-    // TODO: POST to your signup / auth endpoint here.
-    const redirectUrl = platformSignInUrl({ email: trimmedEmail, signedup: true });
-    window.setTimeout(() => {
-      window.location.href = redirectUrl;
-    }, 1800);
+    if (!b) {
+      setErrBiz(true);
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setErrEmail(true);
+      return;
+    }
+    if (pw.length < 8) {
+      setErrPw(true);
+      return;
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password: pw,
+          businessName: b,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setApiError(data.error ?? "Could not create account. Try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      const signInRes = await fetch(`${PLATFORM_URL}/api/auth/signin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: trimmedEmail, password: pw }),
+      });
+
+      setFirst(b.split(/\s+/)[0]);
+      setDone(true);
+
+      if (signInRes.ok) {
+        window.setTimeout(() => {
+          window.location.href = platformOnboardingUrl();
+        }, 1200);
+        return;
+      }
+
+      window.setTimeout(() => {
+        window.location.href = platformSignInUrl({ email: trimmedEmail, signedup: true });
+      }, 1200);
+    } catch {
+      setApiError("Network error. Check your connection and try again.");
+      setSubmitting(false);
+    }
   }
 
   if (done) {
@@ -35,7 +84,7 @@ export default function SignupForm() {
       <div className="su-success" style={{ display: "block" }}>
         <div className="check"><Check size={30} strokeWidth={3} /></div>
         <h3>You&rsquo;re in.</h3>
-        <p>Welcome aboard, {first}. Redirecting you to sign in&hellip;</p>
+        <p>Welcome aboard, {first}. Let&rsquo;s finish setting up your account&hellip;</p>
       </div>
     );
   }
@@ -63,7 +112,14 @@ export default function SignupForm() {
           style={errPw ? { borderColor: "#EF4444" } : undefined}
           onChange={(e) => { setPw(e.target.value); setErrPw(false); }} />
       </div>
-      <button className="btn btn-lg btn-green" type="submit">Create account</button>
+      {apiError ? (
+        <p style={{ color: "#EF4444", fontSize: "13px", marginBottom: "12px", fontWeight: 500 }}>
+          {apiError}
+        </p>
+      ) : null}
+      <button className="btn btn-lg btn-green" type="submit" disabled={submitting}>
+        {submitting ? "Creating account…" : "Create account"}
+      </button>
       <p className="su-fine">By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
     </form>
   );
