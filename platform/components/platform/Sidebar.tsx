@@ -54,7 +54,12 @@ interface NavButtonProps {
   onNavigate: (page: DealerPageId) => void;
 }
 
-function NavButton({ pageId, activePage, isSub = false, onNavigate }: NavButtonProps) {
+function NavButton({
+  pageId,
+  activePage,
+  isSub = false,
+  onNavigate,
+}: NavButtonProps) {
   const def = ALL_NAV_DEFS[pageId];
   if (!def) return null;
 
@@ -72,7 +77,7 @@ function NavButton({ pageId, activePage, isSub = false, onNavigate }: NavButtonP
       type="button"
       className={className}
       id={`nav-${pageId}`}
-      style={{ width: "100%", padding: 0 }}
+      style={{ width: "100%" }}
       onClick={() => onNavigate(pageId)}
     >
       <NavSvgIcon svg={def.svg} />
@@ -123,7 +128,7 @@ export function Sidebar({
   const rendered = new Set<DealerPageId>();
 
   return (
-    <div id="sidebar">
+    <div id="sidebar" style={{ paddingTop: "8px" }}>
       <div
         className="coach-bar"
         onClick={() => onNavigate("settings")}
@@ -134,6 +139,7 @@ export function Sidebar({
           padding: "12px 14px",
           borderBottom: "0.5px solid rgba(60,60,67,0.20)",
           margin: 0,
+          marginTop: "4px",
           borderRadius: 0,
           background: "transparent",
           boxShadow: "none",
@@ -171,6 +177,7 @@ export function Sidebar({
             }}
           />
         </div>
+
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             id="sb-name"
@@ -207,38 +214,30 @@ export function Sidebar({
         style={{
           background: "transparent",
           margin: 0,
-          padding: "4px 8px",
+          padding: "6px 10px 8px 6px",
           border: "none",
           borderRadius: 0,
           boxShadow: "none",
         }}
       >
-        {SECTION_MAP.map((section) => {
+        {SECTION_MAP.map((section, sectionIndex) => {
           const sectionItems = section.ids.filter(
-            (id) =>
-              NAV_LAYOUT.primary.includes(id) && available.includes(id),
+            (id) => NAV_LAYOUT.primary.includes(id) && available.includes(id),
           );
+
           if (sectionItems.length === 0) return null;
 
           return (
-            <div key={section.name}>
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "rgba(0,0,0,0.36)",
-                  letterSpacing: ".04em",
-                  textTransform: "uppercase",
-                  padding: "10px 14px 2px",
-                  lineHeight: 1,
-                  userSelect: "none",
-                  pointerEvents: "none",
-                }}
-              >
-                {section.name}
-              </div>
+            <div
+              key={section.name}
+              className="sidebar-section"
+              style={sectionIndex > 0 ? { marginTop: 10 } : undefined}
+            >
+              <div className="sidebar-section-label">{section.name}</div>
+
               {sectionItems.map((pageId) => {
                 rendered.add(pageId);
+
                 return (
                   <NavButton
                     key={pageId}
@@ -255,6 +254,7 @@ export function Sidebar({
         {NAV_LAYOUT.primary.map((pageId) => {
           if (rendered.has(pageId)) return null;
           if (!available.includes(pageId)) return null;
+
           return (
             <NavButton
               key={pageId}
@@ -269,10 +269,11 @@ export function Sidebar({
           <>
             <button
               type="button"
-              className={`nav-item nav-drawer-trigger${activeIsInDrawer ? " active" : ""}`}
+              className={`nav-item nav-drawer-trigger${
+                activeIsInDrawer ? " active" : ""
+              }`}
               style={{
                 width: "100%",
-                padding: 0,
                 marginTop: "6px",
                 borderTop: "1px solid rgba(0,180,120,0.08)",
                 paddingTop: "8px",
@@ -283,6 +284,7 @@ export function Sidebar({
               <span className="nav-lbl">More</span>
               <NavChevron open={drawerOpen} />
             </button>
+
             {drawerOpen
               ? drawerItems.map((pageId) => (
                   <NavButton
@@ -320,6 +322,7 @@ export function Sidebar({
           >
             Current Stage
           </div>
+
           <div
             id="sb-stage-name"
             style={{
@@ -332,6 +335,7 @@ export function Sidebar({
           >
             {stage.label}
           </div>
+
           <div
             id="sb-stage-rev"
             style={{
@@ -342,6 +346,7 @@ export function Sidebar({
           >
             {stage.rev}
           </div>
+
           <div
             style={{
               marginTop: "10px",
@@ -361,6 +366,7 @@ export function Sidebar({
               }}
             />
           </div>
+
           <div
             id="sb-stage-progress"
             style={{
@@ -407,6 +413,7 @@ export function Sidebar({
             >
               {coach.initials}
             </div>
+
             <div
               style={{
                 position: "absolute",
@@ -420,6 +427,7 @@ export function Sidebar({
               }}
             />
           </div>
+
           <div>
             <div
               style={{
@@ -431,6 +439,7 @@ export function Sidebar({
             >
               {coach.name}
             </div>
+
             <div
               style={{
                 fontSize: "11px",

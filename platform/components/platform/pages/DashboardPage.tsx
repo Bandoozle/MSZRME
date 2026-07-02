@@ -476,45 +476,13 @@ export function DashboardPage({
           >
             Performance
           </div>
-          <div
-            className="apl-seg"
-            style={{
-              display: "inline-flex",
-              background: "var(--apl-seg-bg)",
-              borderRadius: "9px",
-              padding: "2px",
-              gap: 0,
-            }}
-          >
+          <div className="apl-seg">
             {PERIODS.map((p) => (
               <button
                 key={p}
                 type="button"
-                className="period-btn"
+                className={`period-btn${period === p ? " is-active" : ""}`}
                 onClick={() => onPeriodChange(p)}
-                style={{
-                  padding: "0 13px",
-                  height: "30px",
-                  borderRadius: "7px",
-                  fontSize: "13px",
-                  fontWeight: period === p ? 600 : 500,
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "all .2s",
-                  background:
-                    period === p ? "var(--apl-seg-active)" : "transparent",
-                  color:
-                    period === p
-                      ? "var(--apl-seg-active-fg)"
-                      : "var(--apl-seg-fg)",
-                  whiteSpace: "nowrap",
-                  fontFamily: "inherit",
-                  letterSpacing: "-0.01em",
-                  boxShadow:
-                    period === p
-                      ? "0 3px 8px rgba(0,0,0,0.12),0 1px 1px rgba(0,0,0,0.04)"
-                      : "none",
-                }}
               >
                 {p}
               </button>
